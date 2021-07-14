@@ -1,0 +1,80 @@
+using System;
+using System.Drawing;
+using System.Net.Sockets;
+using System.Windows.Forms;
+using System.Drawing.Imaging;
+using System.Runtime.Serialization.Formatters.Binary;
+
+
+namespace Omen_Client
+{
+    public partial class Main : Form
+    {
+        public Main()
+        {
+            InitializeComponent();
+        }
+
+        private readonly TcpClient client = new TcpClient();
+        private NetworkStream mainStream;
+        private int portNumber;
+
+        public static Image GrabDesktop()
+        {
+            Rectangle bound = Screen.PrimaryScreen.Bounds;
+            Bitmap screenshot = new Bitmap(bound.Width, bound.Height, PixelFormat.Format32bppArgb);
+            Graphics graphics = Graphics.FromImage(screenshot);
+            graphics.CopyFromScreen(bound.X, bound.Y, 0, 0, bound.Size, CopyPixelOperation.SourceCopy);
+            return screenshot;
+        }
+
+        public void SendDesktopImage()
+        {
+            BinaryFormatter binFormatter = new BinaryFormatter();
+            mainStream = client.GetStream();
+            binFormatter.Serialize(mainStream, GrabDesktop());
+        }
+
+        public void ConnectButton_Click(object sender, EventArgs e)
+        {
+            portNumber = int.Parse(PortTextBox.Text);
+            try
+            {
+                client.Connect(IpTextBox.Text, portNumber);
+                ConnectButton.Text = "Connected";
+                MessageBox.Show("Connected");
+                ConnectButton.Enabled = false;
+                ShareButton.Enabled = true;
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Failed to connect");
+                ConnectButton.Text = "Not Connected";
+            }
+        }
+
+        public void Main_Load(object sender, EventArgs e)
+        {
+            ShareButton.Enabled = false;
+        }
+
+        public void ShareButton_Click(object sender, EventArgs e)
+        {
+            if (ShareButton.Text.StartsWith("Share"))
+            {
+                Timer.Start();
+                ShareButton.Text = "Stop Sharing";
+            }
+            else
+            {
+                Timer.Stop();
+                ShareButton.Text = "Share my Screen"; 
+            }
+        }
+
+        public void Timer_Tick(object sender, EventArgs e)
+        {
+            SendDesktopImage();
+        }
+    }
+}
